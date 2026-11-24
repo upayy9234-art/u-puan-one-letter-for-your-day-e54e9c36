@@ -184,15 +184,27 @@ def build_candidates():
 
 def pick_winner(candidates):
     """Highest total wins; ties break to the earlier letter, so the pick is
-    stable and the same on every run."""
-    best = None
-    for candidate in candidates:
-        if best is None:
-            best = candidate
-            continue
-        if candidate.total() > best.total():
-            best = candidate
-    return best
+    stable and the same on every run.
+
+    The tie-break is explicit in the sort key, not left to the order the
+    table happens to list the letters in: a candidate wins on its total,
+    and only when totals are equal does the earlier letter win.
+    """
+    return max(candidates, key=lambda c: (c.total(), -ord(c.letter)))
+
+
+def verify_order_independence(candidates):
+    """Prove the pick does not depend on the table's order: score the same
+    candidates in reverse and require the same winner. A pick that moved
+    with the listing order would be an artefact of the table, not a
+    judgement about the letters."""
+    forward = pick_winner(candidates)
+    backward = pick_winner(list(reversed(candidates)))
+    assert forward.letter == backward.letter, (
+        "winner changes with table order: %s vs %s"
+        % (forward.letter, backward.letter)
+    )
+    return forward
 
 
 def validate(candidates):
@@ -216,7 +228,9 @@ def main():
     candidates = build_candidates()
     validate(candidates)
 
-    winner = pick_winner(candidates)
+    # The pick must not depend on the order the table lists the letters
+    # in; verify that before anything is written.
+    winner = verify_order_independence(candidates)
 
     for candidate in candidates:
         print(candidate.report())
